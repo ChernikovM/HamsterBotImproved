@@ -279,21 +279,25 @@ class Tapper:
 
                     boosts = player_data['boosts']
                     energy_boost_time = boosts.get('BoostFullAvailableTaps', {}).get('lastUpgradeAt', 0)
+                    energy_boost_level = boosts.get('BoostFullAvailableTaps', {}).get('level', 0)
 
                     logger.success(f"{self.session_name} | Successful tapped! | "
                                    f"Balance: <c>{balance}</c> (<g>+{calc_taps}</g>) | Total: <e>{total}</e>")
 
                     if active_turbo is False:
                         if (settings.APPLY_DAILY_ENERGY is True
-                                and available_energy < settings.MIN_AVAILABLE_ENERGY
-                                and energy_boost_time - time() > 3600):
-                            logger.info(f"{self.session_name} | Sleep 5s before apply energy boost")
-                            await asyncio.sleep(delay=5)
-
+                                and energy_boost_level < 6
+                                and time() - energy_boost_time > 3600):
+                            logger.info(f"{self.session_name} | <y>Using full energy before boost apply...</y>")
+                            await asyncio.sleep(delay=1)
+                            player_data = await self.send_taps(http_client=http_client,
+                                                       available_energy=available_energy,
+                                                       taps=available_energy)
+                            logger.info(f"{self.session_name} | <y>Applying boost...</y>")
+                            await asyncio.sleep(delay=1)
                             status = await self.apply_boost(http_client=http_client, boost_id="BoostFullAvailableTaps")
                             if status is True:
-                                logger.success(f"{self.session_name} | Successfully apply energy boost")
-
+                                logger.success(f"{self.session_name} | <g>Successfully applied and used energy boost</g>")
                                 await asyncio.sleep(delay=1)
 
                             continue
@@ -334,43 +338,6 @@ class Tapper:
                                         else:
                                             logger.info(f"{self.session_name} | Approximately time to earn: <e>{"{:.2f}".format(time_to_earn*60)}</e> minute(s)")
                                         break
-                            
-                            
-                            #if balance > best_upgrade['price']:
-                            #    status = await self.buy_upgrade(http_client=http_client, upgrade_id=upgrade_id)
-                            #        if status is True:
-                            #            earn_on_hour += profit
-                            #            logger.success(
-                            #                f"{self.session_name} | "
-                            #                f"Successfully upgraded <e>{upgrade_id}</e> to <m>{level}</m> lvl | "
-                            #                f"Earn every hour: <y>{earn_on_hour}</y> (<g>+{profit}</g>)")
-#
-                            #            await asyncio.sleep(delay=1)
-                            #else:
-                            #    logger.info(f"{self.session_name} | Approximately time to earn: <e>{time_to_earn}</e> hours")
-                            #    if time_to_earn > settings.MAX_EARNING_TIME_HOURS:
-                            #    # second best
-                            #
-                            #for upgrade in available_upgrades:
-                            #    upgrade_id = upgrade['id']
-                            #    level = upgrade['level']
-                            #    price = upgrade['price']
-                            #    profit = upgrade['profitPerHourDelta']
-                            #    if balance > price and level <= settings.MAX_LEVEL:
-                            #        logger.info(f"{self.session_name} | Sleep 5s before upgrade <e>{upgrade_id}</e>")
-                            #        await asyncio.sleep(delay=10)
-#
-                            #        status = await self.buy_upgrade(http_client=http_client, upgrade_id=upgrade_id)
-                            #        if status is True:
-                            #            earn_on_hour += profit
-                            #            logger.success(
-                            #                f"{self.session_name} | "
-                            #                f"Successfully upgraded <e>{upgrade_id}</e> to <m>{level}</m> lvl | "
-                            #                f"Earn every hour: <y>{earn_on_hour}</y> (<g>+{profit}</g>)")
-#
-                            #            await asyncio.sleep(delay=1)
-#
-                            #        continue
 
                         if available_energy < settings.MIN_AVAILABLE_ENERGY:
                             logger.info(f"{self.session_name} | Minimum energy reached: {available_energy}")
