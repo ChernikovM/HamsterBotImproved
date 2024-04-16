@@ -265,13 +265,17 @@ class Tapper:
 
                     if not player_data:
                         continue
-
+                    # REQUEST BASED CONSTANTS
                     available_energy = player_data['availableTaps']
                     new_balance = int(player_data['balanceCoins'])
                     calc_taps = new_balance - balance
                     balance = new_balance
                     total = int(player_data['totalCoins'])
                     earn_on_hour = player_data['earnPassivePerHour']
+                    PLAYER_DATA_MAX_TAPS = player_data['maxTaps']
+                    PLAYER_DATA_TAPS_RECOVER_PER_SEC = player_data['tapsRecoverPerSec']
+                    PLAYER_DATA_EARN_PASSIVE_PER_HOUR = player_data['earnPassivePerHour']
+                    PLAYER_DATA_HOURLY_EARNINGS = 3600 * PLAYER_DATA_TAPS_RECOVER_PER_SEC + PLAYER_DATA_EARN_PASSIVE_PER_HOUR
 
                     boosts = player_data['boosts']
                     energy_boost_time = boosts.get('BoostFullAvailableTaps', {}).get('lastUpgradeAt', 0)
@@ -296,28 +300,77 @@ class Tapper:
 
                         if settings.AUTO_UPGRADE is True:
                             upgrades = await self.get_upgrades(http_client=http_client)
-                            available_upgrades = [data for data in upgrades if data['isAvailable'] is True]
-
-                            for upgrade in available_upgrades:
-                                upgrade_id = upgrade['id']
-                                level = upgrade['level']
-                                price = upgrade['price']
-                                profit = upgrade['profitPerHourDelta']
-                                if balance > price and level <= settings.MAX_LEVEL:
-                                    logger.info(f"{self.session_name} | Sleep 5s before upgrade <e>{upgrade_id}</e>")
-                                    await asyncio.sleep(delay=10)
-
-                                    status = await self.buy_upgrade(http_client=http_client, upgrade_id=upgrade_id)
+                            available_upgrades = [upgrade for upgrade in upgrades if upgrade["isAvailable"] and not upgrade["isExpired"] and upgrade["level"] <= settings.MAX_LEVEL]
+                            
+                            while True:
+                                best_upgrade = max(available_upgrades, key=lambda x: x["profitPerHourDelta"] / x["price"])
+                                time_to_earn = (best_upgrade["price"] - balance) / PLAYER_DATA_HOURLY_EARNINGS
+                                logger.info(f"{self.session_name} | Best upgrade for now: <e>{best_upgrade['id']}</e> | <g>+{best_upgrade['profitPerHourDelta']}</g> | price:{best_upgrade['price']}")
+                                await asyncio.sleep(delay=1)
+                                
+                                if balance > best_upgrade['price']:
+                                    status = await self.buy_upgrade(http_client=http_client, upgrade_id=best_upgrade['id'])
                                     if status is True:
-                                        earn_on_hour += profit
+                                        earn_on_hour += best_upgrade['profitPerHourDelta']
                                         logger.success(
                                             f"{self.session_name} | "
-                                            f"Successfully upgraded <e>{upgrade_id}</e> to <m>{level}</m> lvl | "
-                                            f"Earn every hour: <y>{earn_on_hour}</y> (<g>+{profit}</g>)")
+                                            f"Successfully upgraded <e>{best_upgrade['id']}</e> to <m>{best_upgrade['level']}</m> lvl | "
+                                            f"Earn every hour: <y>{earn_on_hour}</y> (<g>+{best_upgrade['profitPerHourDelta']}</g>)")
 
                                         await asyncio.sleep(delay=1)
-
-                                    continue
+                                        break
+                                else:
+                                    if time_to_earn > settings.MAX_EARNING_TIME_HOURS:
+                                        logger.info(f"{self.session_name} | Time to earn greater than max allowed - continue looking for the best upgrade...")
+                                        await asyncio.sleep(delay=1)
+                                        available_upgrades = [upgrade for upgrade in available_upgrades if upgrade["price"] < best_upgrade['price']]
+                                        
+                                        if not available_upgrades:
+                                            logger.info(f"{self.session_name} | No suitable upgrade found within the earning time limit. Try to increase limit or just wait for <g>$$$</g>.")
+                                            break
+                                    else:
+                                        if time_to_earn >= 1:
+                                            logger.info(f"{self.session_name} | Approximately time to earn: <e>{"{:.2f}".format(time_to_earn)}</e> hour(s)")
+                                        else:
+                                            logger.info(f"{self.session_name} | Approximately time to earn: <e>{"{:.2f}".format(time_to_earn*60)}</e> minute(s)")
+                                        break
+                            
+                            
+                            #if balance > best_upgrade['price']:
+                            #    status = await self.buy_upgrade(http_client=http_client, upgrade_id=upgrade_id)
+                            #        if status is True:
+                            #            earn_on_hour += profit
+                            #            logger.success(
+                            #                f"{self.session_name} | "
+                            #                f"Successfully upgraded <e>{upgrade_id}</e> to <m>{level}</m> lvl | "
+                            #                f"Earn every hour: <y>{earn_on_hour}</y> (<g>+{profit}</g>)")
+#
+                            #            await asyncio.sleep(delay=1)
+                            #else:
+                            #    logger.info(f"{self.session_name} | Approximately time to earn: <e>{time_to_earn}</e> hours")
+                            #    if time_to_earn > settings.MAX_EARNING_TIME_HOURS:
+                            #    # second best
+                            #
+                            #for upgrade in available_upgrades:
+                            #    upgrade_id = upgrade['id']
+                            #    level = upgrade['level']
+                            #    price = upgrade['price']
+                            #    profit = upgrade['profitPerHourDelta']
+                            #    if balance > price and level <= settings.MAX_LEVEL:
+                            #        logger.info(f"{self.session_name} | Sleep 5s before upgrade <e>{upgrade_id}</e>")
+                            #        await asyncio.sleep(delay=10)
+#
+                            #        status = await self.buy_upgrade(http_client=http_client, upgrade_id=upgrade_id)
+                            #        if status is True:
+                            #            earn_on_hour += profit
+                            #            logger.success(
+                            #                f"{self.session_name} | "
+                            #                f"Successfully upgraded <e>{upgrade_id}</e> to <m>{level}</m> lvl | "
+                            #                f"Earn every hour: <y>{earn_on_hour}</y> (<g>+{profit}</g>)")
+#
+                            #            await asyncio.sleep(delay=1)
+#
+                            #        continue
 
                         if available_energy < settings.MIN_AVAILABLE_ENERGY:
                             logger.info(f"{self.session_name} | Minimum energy reached: {available_energy}")

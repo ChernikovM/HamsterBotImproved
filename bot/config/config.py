@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     SLEEP_BETWEEN_TAP: list[int] = [10, 25]
 
     USE_PROXY_FROM_FILE: bool = False
+    MAX_EARNING_TIME_HOURS: int = 4
 
 
 settings = Settings()
