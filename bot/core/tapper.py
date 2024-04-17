@@ -334,8 +334,32 @@ class Tapper:
                             await asyncio.sleep(delay=1)
                             status = await self.apply_boost(http_client=http_client, boost_id="BoostFullAvailableTaps")
                             if status is True:
-                                logger.success(f"{self.session_name} | <g>Successfully applied and used energy boost</g>")
-                                await asyncio.sleep(delay=1)
+                                logger.success(f"{self.session_name} | <g>Successfully applied energy boost</g>")
+                                await asyncio.sleep(delay=3)
+                                
+                                profile_data = await self.send_taps(http_client=http_client,
+                                                       available_energy=PLAYER_DATA_MAX_TAPS,
+                                                       taps=PLAYER_DATA_MAX_TAPS,
+                                                       earn_per_tap = earn_per_tap)
+                                                       
+                                if not profile_data:
+                                    logger.warning(f"{self.session_name} | Something went wrong! Skipping...")
+                                    continue
+                                else:
+                                    available_energy = profile_data['availableTaps']
+                                    new_balance = int(profile_data['balanceCoins'])
+                                    calc_taps = new_balance - balance
+                                    balance = new_balance
+                                    total = int(profile_data['totalCoins'])
+                                    earn_on_hour = profile_data['earnPassivePerHour']
+                                    PLAYER_DATA_MAX_TAPS = profile_data['maxTaps']
+                                    PLAYER_DATA_TAPS_RECOVER_PER_SEC = profile_data['tapsRecoverPerSec']
+                                    PLAYER_DATA_EARN_PASSIVE_PER_HOUR = profile_data['earnPassivePerHour']
+                                    PLAYER_DATA_HOURLY_EARNINGS = 3600 * PLAYER_DATA_TAPS_RECOVER_PER_SEC + PLAYER_DATA_EARN_PASSIVE_PER_HOUR
+                                    logger.success(f"{self.session_name} | Successful tapped! | "
+                                                    f"Balance: <c>{balance}</c> (<g>+{calc_taps}</g>) | Total: <e>{total}</e> | Farm: <g>{PLAYER_DATA_HOURLY_EARNINGS}</g><c>[{PLAYER_DATA_EARN_PASSIVE_PER_HOUR}]</c>")
+                            else:
+                                logger.warnign(f"{self.session_name} | <y>Boost broken, skipping...</y>")
 
                             continue
 
