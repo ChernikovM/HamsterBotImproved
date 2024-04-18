@@ -363,7 +363,7 @@ class Tapper:
                                             fullTapsBoost = item
                                             maxLevelEnergyBoost = fullTapsBoost["maxLevel"]
                                             if fullTapsBoost["level"] < maxLevelEnergyBoost:    
-                                                logger.info(f"{self.session_name} | <y>Boosts info: <b>{fullTapsBoost["level"]}/{fullTapsBoost["maxLevel"]}</b> | Next check: {datetime.datetime.fromtimestamp(boost_last_check + 3650).strftime("%H:%M:%S")}</y>")
+                                                logger.info(f"{self.session_name} | <y>Boosts info: <b>{fullTapsBoost["level"]}/{fullTapsBoost["maxLevel"]}</b> | Next check: {datetime.datetime.fromtimestamp(boost_last_check + 3650).strftime('%H:%M:%S')}</y>")
                                                 use_boost = True
                                             else:
                                                 use_boost = False
@@ -450,9 +450,9 @@ class Tapper:
                                             break
                                     else:
                                         if time_to_earn >= 1:
-                                            logger.info(f"{self.session_name} | Approximately time to earn: <e>{"{:.2f}".format(time_to_earn)}</e> hour(s)")
+                                            logger.info(f"{self.session_name} | Approximately time to earn: <e>{'{:.2f}'.format(time_to_earn)}</e> hour(s)")
                                         else:
-                                            logger.info(f"{self.session_name} | Approximately time to earn: <e>{"{:.2f}".format(time_to_earn*60)}</e> minute(s)")
+                                            logger.info(f"{self.session_name} | Approximately time to earn: <e>{'{:.2f}'.format(time_to_earn*60)}</e> minute(s)")
                                         break
 
                         #if available_energy < settings.MIN_AVAILABLE_ENERGY:
