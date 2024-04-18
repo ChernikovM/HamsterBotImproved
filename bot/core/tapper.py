@@ -3,6 +3,8 @@ from time import time
 from random import randint
 from urllib.parse import unquote
 
+import datetime
+
 import aiohttp
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
@@ -192,16 +194,26 @@ class Tapper:
             return False
 
     async def send_taps(self, http_client: aiohttp.ClientSession, available_energy: int, taps: int, earn_per_tap: int) -> dict[str]:
+        response_json = None
+        request_json = None
         try:
             if taps > available_energy:
                 taps = available_energy
                 
             if available_energy - taps / earn_per_tap - 1 < settings.MIN_AVAILABLE_ENERGY:
                 taps = available_energy - settings.MIN_AVAILABLE_ENERGY
-                
+                if taps < 1:
+                    taps = 1
+            
+            count = int(taps / earn_per_tap - 1)
+            
+            if count < 1:
+                count = 1
+            
+            request_json = {'availableTaps': available_energy, 'count': count, 'timestamp': int(time())}
             response = await http_client.post(
                 url='https://api.hamsterkombat.io/clicker/tap',
-                json={'availableTaps': available_energy, 'count': taps / earn_per_tap - 1, 'timestamp': time()})
+                json= request_json)
             response.raise_for_status()
 
             response_json = await response.json()
@@ -209,7 +221,7 @@ class Tapper:
 
             return profile_data
         except Exception as error:
-            logger.error(f"{self.session_name} | Unknown error while Tapping: {error}")
+            logger.error(f"{self.session_name} | Unknown error while Tapping: {error} | response_json: {response_json} | request_json: {request_json}")
             await asyncio.sleep(delay=3)
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
@@ -351,7 +363,7 @@ class Tapper:
                                             fullTapsBoost = item
                                             maxLevelEnergyBoost = fullTapsBoost["maxLevel"]
                                             if fullTapsBoost["level"] < maxLevelEnergyBoost:    
-                                                logger.info(f"{self.session_name} | <y>Boosts info: <b>{fullTapsBoost["level"]}/{fullTapsBoost["maxLevel"]}</b></y>")
+                                                logger.info(f"{self.session_name} | <y>Boosts info: <b>{fullTapsBoost["level"]}/{fullTapsBoost["maxLevel"]}</b> | Next check: {datetime.datetime.fromtimestamp(boost_last_check + 3650).strftime("%H:%M:%S")}</y>")
                                                 use_boost = True
                                             else:
                                                 use_boost = False
