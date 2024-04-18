@@ -163,6 +163,20 @@ class Tapper:
         except Exception as error:
             logger.error(f"{self.session_name} | Unknown error while getting Upgrades: {error}")
             await asyncio.sleep(delay=3)
+            
+    async def get_boosts(self, http_client: aiohttp.ClientSession) -> list[dict]:
+        try:
+            response = await http_client.post(url='https://api.hamsterkombat.io/clicker/boosts-for-buy',
+                                              json={})
+            response.raise_for_status()
+
+            response_json = await response.json()
+            upgrades = response_json['boostsForBuy']
+
+            return upgrades
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error while getting Upgrades: {error}")
+            await asyncio.sleep(delay=3)
 
     async def buy_upgrade(self, http_client: aiohttp.ClientSession, upgrade_id: str) -> bool:
         try:
@@ -216,6 +230,9 @@ class Tapper:
         async with (aiohttp.ClientSession(headers=headers, connector=proxy_conn) as http_client):
             if proxy:
                 await self.check_proxy(http_client=http_client, proxy=proxy)
+
+            boost_last_check = time() - 3800
+            use_boost = False
 
             while True:
                 try:
@@ -278,7 +295,7 @@ class Tapper:
                                 if status is True:
                                     logger.success(f"{self.session_name} | Successfully get daily reward | "
                                                    f"Days: <m>{days}</m> | Reward coins: {rewards[days-1]['rewardCoins']}")
-                                                   
+                            
                             break
                         break
                     
@@ -313,17 +330,40 @@ class Tapper:
                     PLAYER_DATA_EARN_PASSIVE_PER_HOUR = profile_data['earnPassivePerHour']
                     PLAYER_DATA_HOURLY_EARNINGS = 3600 * PLAYER_DATA_TAPS_RECOVER_PER_SEC + PLAYER_DATA_EARN_PASSIVE_PER_HOUR
 
-                    boosts = profile_data['boosts']
-                    energy_boost_time = boosts.get('BoostFullAvailableTaps', {}).get('lastUpgradeAt', 0)
-                    energy_boost_level = boosts.get('BoostFullAvailableTaps', {}).get('level', 0)
+                    #boosts = profile_data['boosts']
+                    energy_boost_time = profile_data['boosts'].get('BoostFullAvailableTaps', {}).get('lastUpgradeAt', 0)
+                    energy_boost_level = profile_data['boosts'].get('BoostFullAvailableTaps', {}).get('level', 0)
 
                     logger.success(f"{self.session_name} | Successful tapped! | "
                                    f"Balance: <c>{balance}</c> (<g>+{calc_taps}</g>) | Total: <e>{total}</e> | Farm: <g>{PLAYER_DATA_HOURLY_EARNINGS}</g><c>[{PLAYER_DATA_EARN_PASSIVE_PER_HOUR}]</c>")
 
                     if active_turbo is False:
-                        if (settings.APPLY_DAILY_ENERGY is True
-                                and energy_boost_level < 6
+                        
+                        maxLevelEnergyBoost = 6
+                        
+                        if settings.APPLY_DAILY_ENERGY is True:
+                            if time() - boost_last_check > 3650:
+                                boosts = await self.get_boosts(http_client=http_client)
+                                if boosts:
+                                    boost_last_check = time()
+                                    for item in boosts:
+                                        if item.get("id") == "BoostFullAvailableTaps":
+                                            fullTapsBoost = item
+                                            maxLevelEnergyBoost = fullTapsBoost["maxLevel"]
+                                            if fullTapsBoost["level"] < maxLevelEnergyBoost:    
+                                                logger.info(f"{self.session_name} | <y>Boosts info: <b>{fullTapsBoost["level"]}/{fullTapsBoost["maxLevel"]}</b></y>")
+                                                use_boost = True
+                                            else:
+                                                use_boost = False
+                                                logger.info(f"{self.session_name} | <y>All boosts already used for today. Lets try after 6h</y>")
+                                                boost_last_check = time() + 3600 * 5
+                                            break    
+                                else:
+                                    logger.warning(f"{self.session_name} | <y>Boosts fetch is broken. Skipping...</y>")
+                    
+                        if (use_boost is True
                                 and time() - energy_boost_time > 3600):
+                                
                             logger.info(f"{self.session_name} | <y>Using full energy before boost apply...</y>")
                             await asyncio.sleep(delay=1)
                             profile_data = await self.send_taps(http_client=http_client,
@@ -403,14 +443,14 @@ class Tapper:
                                             logger.info(f"{self.session_name} | Approximately time to earn: <e>{"{:.2f}".format(time_to_earn*60)}</e> minute(s)")
                                         break
 
-                        if available_energy < settings.MIN_AVAILABLE_ENERGY:
-                            logger.info(f"{self.session_name} | Minimum energy reached: {available_energy}")
-                            logger.info(f"{self.session_name} | Sleep {settings.SLEEP_BY_MIN_ENERGY}s")
-
-                            await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
-                            profile_data = None
-
-                            continue
+                        #if available_energy < settings.MIN_AVAILABLE_ENERGY:
+                         #   logger.info(f"{self.session_name} | Minimum energy reached: {available_energy}")
+                          #  logger.info(f"{self.session_name} | Sleep {settings.SLEEP_BY_MIN_ENERGY}s")
+#
+ #                           await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
+  #                          profile_data = None
+#
+ #                           continue
 
                 except InvalidSession as error:
                     raise error
