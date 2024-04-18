@@ -236,6 +236,7 @@ class Tapper:
         access_token_created_time = 0
         turbo_time = 0
         active_turbo = False
+        check_upgrades = True
 
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
 
@@ -285,7 +286,7 @@ class Tapper:
                                 if status is True:
                                     logger.success(f"{self.session_name} | Successfully selected exchange <y>Bybit</y>")
 
-                            last_passive_earn = profile_data['lastPassiveEarn']
+                            last_passive_earn = int(profile_data['lastPassiveEarn'])
                             earn_on_hour = profile_data['earnPassivePerHour']
                             earn_per_tap = profile_data['earnPerTap']
 
@@ -415,15 +416,21 @@ class Tapper:
 
                             continue
 
-                        if settings.AUTO_UPGRADE is True:
+                        if settings.AUTO_UPGRADE is True and check_upgrades is True:
                             upgrades = await self.get_upgrades(http_client=http_client)
                             available_upgrades = [upgrade for upgrade in upgrades if upgrade["isAvailable"] and not upgrade["isExpired"] and upgrade["level"] <= settings.MAX_LEVEL]
                             
                             while True:
                                 best_upgrade = max(available_upgrades, key=lambda x: x["profitPerHourDelta"] / x["price"])
                                 time_to_earn = (best_upgrade["price"] - balance) / PLAYER_DATA_HOURLY_EARNINGS
-                                logger.info(f"{self.session_name} | Best upgrade for now: <e>{best_upgrade['id']}</e> | <g>+{best_upgrade['profitPerHourDelta']}</g> | price:{best_upgrade['price']}")
+                                time_to_return = int(best_upgrade["price"]/best_upgrade["profitPerHourDelta"])
+                                logger.info(f"{self.session_name} | Best upgrade for now: <e>{best_upgrade['id']}</e> | <g>+{best_upgrade['profitPerHourDelta']}</g> | price:<b>{best_upgrade['price']}</b> | TTR: <b>{time_to_return}</b>")
                                 await asyncio.sleep(delay=1)
+                                
+                                if best_upgrade['price'] / best_upgrade['profitPerHourDelta'] > settings.UPGRADE_MAX_RETURN_PERIOD_HOURS:
+                                    logger.warning(f"{self.session_name} | <y>Upgrade return time [{int(best_upgrade['price'] / best_upgrade['profitPerHourDelta'])}] > [{settings.UPGRADE_MAX_RETURN_PERIOD_HOURS}] than maximum allowed. Cancelling checking upgrades...</y>")
+                                    check_upgrades = False
+                                    break
                                 
                                 if balance > best_upgrade['price']:
                                     status = await self.buy_upgrade(http_client=http_client, upgrade_id=best_upgrade['id'])

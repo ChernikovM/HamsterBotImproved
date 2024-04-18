@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     USE_PROXY_FROM_FILE: bool = False
     MAX_EARNING_TIME_HOURS: int = 4
+    UPGRADE_MAX_RETURN_PERIOD_HOURS: int = 48
 
 
 settings = Settings()
