@@ -363,7 +363,7 @@ class Tapper:
                                             fullTapsBoost = item
                                             maxLevelEnergyBoost = fullTapsBoost["maxLevel"]
                                             if fullTapsBoost["level"] < maxLevelEnergyBoost:    
-                                                logger.info(f"{self.session_name} | <y>Boosts info: <b>{fullTapsBoost["level"]}/{fullTapsBoost["maxLevel"]}</b> | Next check: {datetime.datetime.fromtimestamp(boost_last_check + 3650).strftime('%H:%M:%S')}</y>")
+                                                logger.info(f"{self.session_name} | <y>Boosts info: <b>{fullTapsBoost['level']}/{fullTapsBoost['maxLevel']}</b> | Next check: {datetime.datetime.fromtimestamp(boost_last_check + 3650).strftime('%H:%M:%S')}</y>")
                                                 use_boost = True
                                             else:
                                                 use_boost = False
