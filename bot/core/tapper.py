@@ -421,7 +421,7 @@ class Tapper:
                             available_upgrades = [upgrade for upgrade in upgrades if upgrade["isAvailable"] and not upgrade["isExpired"] and upgrade["level"] <= settings.MAX_LEVEL]
                             
                             while True:
-                                best_upgrade = max(available_upgrades, key=lambda x: x["profitPerHourDelta"] / x["price"])
+                                best_upgrade = max(available_upgrades, key=lambda x: (x["profitPerHourDelta"] / x["price"]) if x["price"] != 0 else float('-inf'))
                                 time_to_earn = (best_upgrade["price"] - balance) / PLAYER_DATA_HOURLY_EARNINGS
                                 time_to_return = int(best_upgrade["price"]/best_upgrade["profitPerHourDelta"])
                                 logger.info(f"{self.session_name} | Best upgrade for now: <e>{best_upgrade['id']}</e> | <g>+{best_upgrade['profitPerHourDelta']}</g> | price:<b>{best_upgrade['price']}</b> | TTR: <b>{time_to_return}</b>")
