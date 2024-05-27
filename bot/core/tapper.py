@@ -422,7 +422,7 @@ class Tapper:
                             
                             while True:
                                 best_upgrade = max(available_upgrades, key=lambda x: (x["profitPerHourDelta"] / x["price"]) if x["price"] != 0 else float('-inf'))
-                                time_to_earn = best_upgrade["cooldownSeconds"] if best_upgrade["cooldownSeconds"] != 0 else (best_upgrade["price"] - balance) / PLAYER_DATA_HOURLY_EARNINGS
+                                time_to_earn = (best_upgrade["cooldownSeconds"] / 3600) if best_upgrade["cooldownSeconds"] != 0 else (best_upgrade["price"] - balance) / PLAYER_DATA_HOURLY_EARNINGS
                                 time_to_return = int(best_upgrade["price"]/best_upgrade["profitPerHourDelta"])
                                 logger.info(f"{self.session_name} | Best upgrade for now: <e>{best_upgrade['id']}</e> | <g>+{best_upgrade['profitPerHourDelta']}</g> | price:<b>{best_upgrade['price']}</b> | TTR: <b>{time_to_return}</b>")
                                 await asyncio.sleep(delay=1)
@@ -432,7 +432,8 @@ class Tapper:
                                     check_upgrades = False
                                     break
                                 
-                                if balance > best_upgrade['price']:
+                                
+                                if balance > best_upgrade['price'] and time_to_earn <= 0:
                                     status = await self.buy_upgrade(http_client=http_client, upgrade_id=best_upgrade['id'])
                                     if status is True:
                                         earn_on_hour += best_upgrade['profitPerHourDelta']
